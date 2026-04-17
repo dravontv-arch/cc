@@ -112,6 +112,7 @@ $allUrls = $stmt->fetchAll();
                 <a href="index.php">📊 Дашборд</a>
                 <a href="urls.php">🔗 Все ссылки</a>
                 <a href="analytics.php" class="active">📈 Аналитика</a>
+                <a href="transitions.php">📋 Все переходы</a>
                 <a href="settings.php">⚙️ Настройки</a>
                 <a href="logs.php">📝 Логи</a>
                 <a href="logout.php" class="logout">🚪 Выход</a>
