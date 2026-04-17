@@ -13,9 +13,73 @@ $pdo = getDbConnection();
 $message = '';
 $messageType = '';
 
+// Получение настроек
+$stmt = $pdo->query("SELECT * FROM settings");
+$settings = [];
+while ($row = $stmt->fetch()) {
+    $settings[$row['setting_key']] = $row['setting_value'];
+}
+$defaultLength = (int)($settings['default_length'] ?? 6);
+$allowCustomAlias = ($settings['allow_custom_alias'] ?? '1') === '1';
+
 // Обработка действий
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = isset($_POST['action']) ? $_POST['action'] : '';
+    
+    // Создание новой ссылки
+    if ($action === 'create') {
+        $originalUrl = trim($_POST['original_url'] ?? '');
+        $customAlias = trim($_POST['custom_alias'] ?? '');
+        $codeLength = isset($_POST['code_length']) ? (int)$_POST['code_length'] : $defaultLength;
+        
+        if (!empty($originalUrl)) {
+            // Валидация URL
+            if (!filter_var($originalUrl, FILTER_VALIDATE_URL)) {
+                $message = 'Некорректный URL';
+                $messageType = 'error';
+            } else {
+                // Генерация короткого кода
+                if (!empty($customAlias) && $allowCustomAlias) {
+                    $shortCode = preg_replace('/[^a-zA-Z0-9_-]/', '', $customAlias);
+                    // Проверка на уникальность
+                    $stmt = $pdo->prepare("SELECT id FROM urls WHERE short_code = ?");
+                    $stmt->execute([$shortCode]);
+                    if ($stmt->fetch()) {
+                        $message = 'Такой алиас уже существует';
+                        $messageType = 'error';
+                        $shortCode = '';
+                    }
+                }
+                
+                if (empty($shortCode)) {
+                    // Генерация случайного кода
+                    $characters = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+                    do {
+                        $shortCode = '';
+                        for ($i = 0; $i < $codeLength; $i++) {
+                            $shortCode .= $characters[random_int(0, strlen($characters) - 1)];
+                        }
+                        $stmt = $pdo->prepare("SELECT id FROM urls WHERE short_code = ?");
+                        $stmt->execute([$shortCode]);
+                    } while ($stmt->fetch());
+                }
+                
+                // Сохранение ссылки
+                $stmt = $pdo->prepare("INSERT INTO urls (short_code, original_url, created_at) VALUES (?, ?, NOW())");
+                $stmt->execute([$shortCode, $originalUrl]);
+                
+                $message = 'Ссылка успешно создана: ' . htmlspecialchars($shortCode);
+                $messageType = 'success';
+                
+                // Логирование
+                $stmt = $pdo->prepare("INSERT INTO admin_logs (user_id, action, description, ip_address) VALUES (?, ?, ?, ?)");
+                $stmt->execute([$_SESSION['admin_id'], 'create_url', 'Создание ссылки ' . $shortCode, $_SERVER['REMOTE_ADDR']]);
+            }
+        } else {
+            $message = 'Введите URL';
+            $messageType = 'error';
+        }
+    }
     
     if ($action === 'delete' && isset($_POST['id'])) {
         $stmt = $pdo->prepare("DELETE FROM urls WHERE id = ?");
@@ -131,6 +195,35 @@ $totalPages = ceil($totalUrls / $perPage);
             <?php if ($message): ?>
                 <div class="alert alert-<?php echo $messageType; ?>"><?php echo htmlspecialchars($message); ?></div>
             <?php endif; ?>
+
+            <!-- Форма создания новой ссылки -->
+            <div class="settings-card" style="margin-bottom: 20px;">
+                <h2>➕ Создать новую ссылку</h2>
+                <form method="POST" style="display: grid; gap: 15px; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
+                    <div style="grid-column: 1 / -1;">
+                        <label for="original_url">Длинная ссылка (обязательно):</label>
+                        <input type="url" id="original_url" name="original_url" placeholder="https://example.com/very-long-url" required style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px;">
+                    </div>
+                    
+                    <?php if ($allowCustomAlias): ?>
+                    <div>
+                        <label for="custom_alias">Свой алиас (необязательно):</label>
+                        <input type="text" id="custom_alias" name="custom_alias" placeholder="my-link" pattern="[a-zA-Z0-9_-]+" style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px;">
+                        <small style="color: #999;">Только буквы, цифры, _ и -</small>
+                    </div>
+                    <?php endif; ?>
+                    
+                    <div>
+                        <label for="code_length">Длина случайного кода:</label>
+                        <input type="number" id="code_length" name="code_length" min="4" max="20" value="<?php echo $defaultLength; ?>" style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px;">
+                        <small style="color: #999;">От 4 до 20 символов</small>
+                    </div>
+                    
+                    <div style="grid-column: 1 / -1; display: flex; align-items: flex-end;">
+                        <button type="submit" name="action" value="create" class="btn btn-primary" style="padding: 15px 30px; font-size: 16px;">Создать ссылку</button>
+                    </div>
+                </form>
+            </div>
 
             <form method="GET" class="search-form">
                 <input type="text" name="search" placeholder="Поиск по URL или коду..." value="<?php echo htmlspecialchars($search); ?>">
