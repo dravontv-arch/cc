@@ -241,18 +241,16 @@ $allUrls = $stmt->fetchAll();
         });
 
         // Браузеры
+        <?php
+        $stmt = $pdo->query("SELECT browser, COUNT(*) as clicks FROM url_stats $where GROUP BY browser ORDER BY clicks DESC");
+        $browserData = $stmt->fetchAll();
+        ?>
         new Chart(document.getElementById('browserChart'), {
             type: 'doughnut',
             data: {
-                labels: <?php echo json_encode(array_column(<?php 
-                    $stmt = $pdo->query("SELECT browser, COUNT(*) as clicks FROM url_stats $where GROUP BY browser ORDER BY clicks DESC");
-                    echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC));
-                ?>, 'browser')); ?>,
+                labels: <?php echo json_encode(array_column($browserData, 'browser')); ?>,
                 datasets: [{
-                    data: <?php 
-                        $stmt = $pdo->query("SELECT browser, COUNT(*) as clicks FROM url_stats $where GROUP BY browser ORDER BY clicks DESC");
-                        echo json_encode(array_column($stmt->fetchAll(), 'clicks'));
-                    ?>,
+                    data: <?php echo json_encode(array_column($browserData, 'clicks')); ?>,
                     backgroundColor: ['#3498db', '#2ecc71', '#e74c3c', '#f39c12', '#9b59b6']
                 }]
             },
@@ -260,18 +258,16 @@ $allUrls = $stmt->fetchAll();
         });
 
         // ОС
+        <?php
+        $stmt = $pdo->query("SELECT os, COUNT(*) as clicks FROM url_stats $where GROUP BY os ORDER BY clicks DESC");
+        $osData = $stmt->fetchAll();
+        ?>
         new Chart(document.getElementById('osChart'), {
             type: 'doughnut',
             data: {
-                labels: <?php 
-                    $stmt = $pdo->query("SELECT os, COUNT(*) as clicks FROM url_stats $where GROUP BY os ORDER BY clicks DESC");
-                    echo json_encode(array_column($stmt->fetchAll(), 'os'));
-                ?>,
+                labels: <?php echo json_encode(array_column($osData, 'os')); ?>,
                 datasets: [{
-                    data: <?php 
-                        $stmt = $pdo->query("SELECT os, COUNT(*) as clicks FROM url_stats $where GROUP BY os ORDER BY clicks DESC");
-                        echo json_encode(array_column($stmt->fetchAll(), 'clicks'));
-                    ?>,
+                    data: <?php echo json_encode(array_column($osData, 'clicks')); ?>,
                     backgroundColor: ['#e74c3c', '#3498db', '#2ecc71', '#f39c12', '#9b59b6']
                 }]
             },
