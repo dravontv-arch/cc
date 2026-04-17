@@ -1,0 +1,16 @@
+```
+# Logs and temp files
+*.log
+*.tmp
+
+# Environment variables
+.env
+.env.local
+*.env.*
+
+# Dependencies
+vendor/
+
+# Cache directories
+.cache/
+```
