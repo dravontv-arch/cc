@@ -98,6 +98,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $message = 'Статус изменен';
         $messageType = 'success';
     }
+    
+    // Редактирование ссылки
+    if ($action === 'edit' && isset($_POST['id']) && isset($_POST['original_url'])) {
+        $originalUrl = trim($_POST['original_url']);
+        
+        if (!empty($originalUrl)) {
+            if (!filter_var($originalUrl, FILTER_VALIDATE_URL)) {
+                $message = 'Некорректный URL';
+                $messageType = 'error';
+            } else {
+                $stmt = $pdo->prepare("UPDATE urls SET original_url = ?, updated_at = NOW() WHERE id = ?");
+                $stmt->execute([$originalUrl, $_POST['id']]);
+                $message = 'Ссылка успешно обновлена';
+                $messageType = 'success';
+                
+                // Логирование
+                $stmt = $pdo->prepare("INSERT INTO admin_logs (user_id, action, description, ip_address) VALUES (?, ?, ?, ?)");
+                $stmt->execute([$_SESSION['admin_id'], 'edit_url', 'Редактирование ссылки ID ' . $_POST['id'], $_SERVER['REMOTE_ADDR']]);
+            }
+        } else {
+            $message = 'Введите URL';
+            $messageType = 'error';
+        }
+    }
 }
 
 // Пагинация и поиск
@@ -257,6 +281,7 @@ $totalPages = ceil($totalUrls / $perPage);
                         <td><?php echo $url['is_active'] ? '<span style="color: green;">● Активна</span>' : '<span style="color: red;">● Неактивна</span>'; ?></td>
                         <td><?php echo date('d.m.Y H:i', strtotime($url['created_at'])); ?></td>
                         <td class="actions">
+                            <button onclick="openEditModal(<?php echo $url['id']; ?>, '<?php echo htmlspecialchars($url['original_url'], ENT_QUOTES); ?>')" class="btn btn-primary">Редактировать</button>
                             <form method="POST" style="display: inline;">
                                 <input type="hidden" name="id" value="<?php echo $url['id']; ?>">
                                 <input type="hidden" name="action" value="toggle_status">
@@ -282,5 +307,43 @@ $totalPages = ceil($totalUrls / $perPage);
             <?php endif; ?>
         </main>
     </div>
+
+    <!-- Модальное окно редактирования -->
+    <div id="editModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000;">
+        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 30px; border-radius: 15px; min-width: 400px; max-width: 90%;">
+            <h2 style="margin-bottom: 20px;">✏️ Редактировать ссылку</h2>
+            <form method="POST">
+                <input type="hidden" name="action" value="edit">
+                <input type="hidden" id="editId" name="id">
+                <div style="margin-bottom: 20px;">
+                    <label for="editOriginalUrl">Новый URL:</label>
+                    <input type="url" id="editOriginalUrl" name="original_url" required style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; margin-top: 5px;">
+                </div>
+                <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                    <button type="button" onclick="closeEditModal()" class="btn btn-warning">Отмена</button>
+                    <button type="submit" class="btn btn-primary">Сохранить</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        function openEditModal(id, url) {
+            document.getElementById('editId').value = id;
+            document.getElementById('editOriginalUrl').value = url;
+            document.getElementById('editModal').style.display = 'block';
+        }
+        
+        function closeEditModal() {
+            document.getElementById('editModal').style.display = 'none';
+        }
+        
+        // Закрытие по клику вне модального окна
+        document.getElementById('editModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeEditModal();
+            }
+        });
+    </script>
 </body>
 </html>
