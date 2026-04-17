@@ -1,1 +1,25 @@
-Nothing needs to be added to .gitignore since only a PHP source file was modified and no build artifacts, dependencies, or temporary files were detected in the changes.
+```
+# Database migration files
+*.sql
+
+# PHP related
+*.php~
+
+# Temporary files
+*.tmp
+*.temp
+*.swp
+*.swo
+
+# Logs
+*.log
+
+# Environment files
+.env
+.env.local
+.env.*
+
+# Editor backup files
+*~
+.\#*
+```
